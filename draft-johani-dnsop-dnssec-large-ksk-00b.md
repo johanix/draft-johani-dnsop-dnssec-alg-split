@@ -92,6 +92,18 @@ continuing to sign the bulk of the zone with a smaller ZSK. The DNSKEY
 RRset is then the only large object in the zone; ordinary query
 responses remain small.
 
+Asymmetric key strength between the KSK and ZSK is already standard
+operational practice. Operators routinely deploy RSA zones with a
+4096-bit (or 2048-bit) KSK and a 2048-bit (or 1024-bit) ZSK, trading
+larger DNSKEY-RRset signatures for smaller signatures on the rest of
+the zone. The KSK/ZSK strength asymmetry proposed by this document is
+the same operational pattern; the only difference is that the
+asymmetry crosses the algorithm-number boundary rather than a
+key-length boundary within a single algorithm. It is that crossing --
+not the strength asymmetry itself -- that interacts with the
+completeness rule of {{RFC4035}} and motivates the updates in this
+document.
+
 This document specifies three changes that together enable this
 deployment pattern:
 
@@ -509,6 +521,13 @@ The safety argument for this document is thus *structural asymmetry
 plus bounded ZSK lifetime*, not preserved completeness. This is why
 {{p-algsep}} and {{p-zskcadence}} are inseparable: the completeness
 relaxation is safe only in combination with the cadence requirement.
+
+The strength asymmetry between KSK and ZSK is itself not new; the
+common RSA practice of pairing a longer-key KSK with a shorter-key
+ZSK is exactly this pattern. What is new under this document is that
+the asymmetry crosses the algorithm-number boundary, which is what
+triggers the completeness rule and motivates the relaxation specified
+here.
 
 ## Threat Model for the Transition
 
