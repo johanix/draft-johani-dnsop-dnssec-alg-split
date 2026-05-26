@@ -599,3 +599,6 @@ populating it) is to be specified.
 The author thanks Ondřej Surý for arriving independently at the idea
 of splitting the KSK and ZSK algorithms and for substantive
 discussions on this topic during RIPE 92.
+
+The author also thanks Christian Elmerot (Cloudflare) and Peter
+Thomassen (deSEC) for valuable insights and suggestions.
