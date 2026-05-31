@@ -92,9 +92,9 @@ continuing to sign the bulk of the zone with a smaller ZSK. The DNSKEY
 RRset is then the only large object in the zone; ordinary query
 responses remain small.
 
-Asymmetric key strength between the KSK and ZSK is already standard
+Asymmetric key strength between the KSK and ZSK is already common
 operational practice. Operators routinely deploy RSA zones with a
-4096-bit (or 2048-bit) KSK and a 2048-bit (or 1024-bit) ZSK, trading
+longer (i.e. stronger) KSK and a shorter ZSK, trading
 larger DNSKEY-RRset signatures for smaller signatures on the rest of
 the zone. The KSK/ZSK strength asymmetry proposed by this document is
 the same operational pattern; the only difference is that the
@@ -596,9 +596,9 @@ populating it) is to be specified.
 # Acknowledgments
 {:numbered="false"}
 
-The author thanks Ondřej Surý for arriving independently at the idea
-of splitting the KSK and ZSK algorithms and for substantive
-discussions on this topic during RIPE 92.
+The author acknowledges that Ondřej Surý arrived independently at the
+idea of splitting the KSK and ZSK algorithms, and thanks him for
+substantive discussions on this topic during RIPE 92.
 
 The author also thanks Christian Elmerot (Cloudflare), Peter
 Thomassen (deSEC), and Erik Bergström (Swedish Internet Foundation)
