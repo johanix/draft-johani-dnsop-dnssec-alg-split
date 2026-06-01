@@ -297,22 +297,28 @@ profile with a ZSK lifetime exceeding those minima. Such policies are
 out of scope for this document, which only requires that *some*
 appropriate cadence be enforced.
 
-## The Parent's ZSK Is Part of the Argument
+## The Parent's Signature on the Child DS Is Part of the Argument
 
 The chain-of-trust argument in {{p-zskcadence}} assumes that the
-parent's DS RRset is authentic. That authenticity rests on the
-parent's own ZSK, signing the DS RRset. If the parent's ZSK is broken
-faster than it is rolled, an adversary can substitute the child's DS
-RRset and thereby substitute the child's KSK; the child's algorithm-A
-protection then provides no benefit.
+parent's DS RRset is authentic. That authenticity rests on the key
+with which the parent signs the child's DS RRset -- typically the
+parent's ZSK, though a parent operating with a CSK signs with that key
+instead. If an adversary can forge that signature, the adversary can
+substitute the child's DS, and thereby the child's KSK; the child's
+algorithm-A protection then provides no benefit.
 
-This is a general property of DNSSEC: a zone cannot have stronger
-authenticity than its parent. {{p-zskcadence}} therefore applies
-recursively. A parent zone whose children rely on the algorithm-split
-profile SHOULD roll its own ZSK at a cadence consistent with the
-threat estimate against the parent's ZSK algorithm, regardless of
-whether the parent itself uses the algorithm-split profile. {{s-root}}
-discusses the special case of the root zone.
+This is a general property of DNSSEC: a zone is no more trustworthy
+than the weakest link between it and the trust anchor. The relevant
+property of the parent is therefore the strength of the key signing
+the child DS RRset against the threat -- a function of both that
+key's algorithm and the cadence at which the parent rolls it. A
+parent that signs with a strong algorithm needs to roll only at the
+normal operational cadence; a parent that signs with a weaker
+algorithm needs to roll faster, as {{p-zskcadence}} requires of any
+zone in this profile. Either way, the obligation is on the parent's
+own configuration, independent of whether any particular child uses
+the algorithm-split profile. {{s-root}} discusses the special case of
+the root zone.
 
 # Part 3: DS Algorithm Number as a Size Signal for the DNSKEY RRset {#p-dssignal}
 
@@ -434,12 +440,12 @@ The root zone has on the order of a thousand delegations and a small,
 well-resourced operational team; its ZSK rotation cadence is not
 limited by signing throughput. Given the root's role as the apex of
 every DNSSEC trust chain, and the cross-dependency discussed in
-{{p-zskcadence}}, the root ZSK SHOULD be rolled on a substantially
-shorter cadence than the one-month initial guideline of
-{{p-zskcadence}}. A weekly cadence is suggested as a starting point
-for discussion, with the same expectation as elsewhere in this
-document that the cadence will tighten as threat estimates against
-the root ZSK algorithm sharpen.
+{{p-zskcadence}}, the strength of the key signing DS RRsets in the
+root zone is a security parameter of every zone in the tree. That
+strength is the combination of the algorithm used and the cadence at
+which the key is rolled. The root zone operators have historically
+chosen and managed the root ZSK with this combined strength in mind,
+and are expected to continue doing so as threat estimates evolve.
 
 ## Transport for Root Queries
 
@@ -557,16 +563,23 @@ computer capable of breaking algorithm B. Under that threat:
 ## Cross-Zone Dependency
 
 As noted in {{p-zskcadence}}, the security of a zone signed under the
-algorithm-split profile depends on its parent rolling its own ZSK at a
-cadence consistent with the parent's threat estimate. A parent with
-a slow ZSK rotation undermines its children's KSK authenticity even
-when those children deploy the profile correctly. This is a general
-DNSSEC property -- a zone cannot have stronger authenticity than its
-parent -- not a novel weakness introduced by this document, but the
-property becomes more visible when the child relies on a much stronger
-KSK algorithm than the parent's ZSK algorithm. Operators of zones with
-DNSSEC-aware children SHOULD treat their own ZSK rotation cadence as a
-security parameter of their children, not solely of themselves.
+algorithm-split profile depends on the strength of the key with which
+its parent signs the child DS RRset -- typically the parent's ZSK, or
+a CSK where the parent operates with one. That strength is a function
+of both the algorithm and the rotation cadence: a parent signing with
+a strong algorithm can roll at the normal operational cadence, while
+a parent signing with a weaker algorithm must roll faster to bound an
+adversary's forgery window. Either way, a weak parent signature
+undermines its children's KSK authenticity even when those children
+deploy the profile correctly. This is a general DNSSEC property -- a
+zone is no more trustworthy than the weakest link between it and the
+trust anchor -- not a novel weakness introduced by this document, but
+the property becomes more visible when the child relies on a much
+stronger KSK algorithm than the key with which the parent signs the
+child's DS. Operators of zones with DNSSEC-aware children SHOULD
+treat the strength of their DS-signing key (algorithm and cadence
+together) as a security parameter of their children, not solely of
+themselves.
 
 ## Transport Signal
 
