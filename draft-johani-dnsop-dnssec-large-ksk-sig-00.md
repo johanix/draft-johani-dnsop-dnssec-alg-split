@@ -2,7 +2,7 @@
 title: "Large Key-Signing Keys in DNSSEC: Algorithm Separation, Bounded ZSK Lifetime, and DS-Based Size Signaling"
 abbrev: "Large KSKs in DNSSEC"
 category: std
-docname: draft-johani-dnsop-dnssec-large-ksk-00b
+docname: draft-johani-dnsop-dnssec-large-ksk-sig-00
 submissiontype: IETF
 ipr: trust200902
 area: "Internet"
