@@ -1,8 +1,8 @@
-# draft-johani-dnsop-dnssec-large-ksk
+# draft-johani-dnsop-dnssec-large-ksk-sig
 
 IETF Internet-Draft:
-**Large Key-Signing Keys in DNSSEC: Algorithm Separation and DS-Based
-TCP Signaling**
+**Algorithm-Split DNSSEC: KSK/ZSK Algorithm Separation, Bounded ZSK
+Cadence, and DS-Based Size Signaling**
 
 ## Summary
 
@@ -11,27 +11,30 @@ today's elliptic-curve algorithms. A practical transition strategy uses
 a large (post-quantum) algorithm only for the key-signing key (KSK),
 which signs just the apex DNSKEY RRset, while the rest of the zone is
 signed with a small, traditional zone-signing key (ZSK). This draft
-makes two complementary proposals:
+makes three interdependent proposals:
 
 1. **Algorithm separation for KSK and ZSK** — relax the DNSSEC signer
-   rule that requires a zone to be signed with *every* algorithm in the
-   apex DNSKEY RRset, so a large KSK algorithm need not be applied to
-   every RRset. (Validators already accept any single valid path per
-   RFC 6840 §5.11, so only the signer-side rule changes.)
+   rule that requires a zone to be signed with *every* algorithm in
+   the apex DNSKEY RRset, so a large KSK algorithm need not be
+   applied to every RRset. Update the validator-side rule to match,
+   so a conforming validator does not mark such zones Bogus.
 
-2. **DS algorithm number as a TCP hint** — the parent's DS RRset already
-   carries the child KSK's algorithm number, so a resolver can recognize
-   a likely-oversized DNSKEY RRset and query it over TCP directly,
-   skipping the truncated-UDP round trip.
+2. **Bounded ZSK rotation cadence** — the cadence at which the ZSK is
+   rolled becomes the security parameter that compensates for the
+   ZSK algorithm being weaker than the KSK algorithm. Without an
+   explicit cadence bound the algorithm-split profile is unsafe.
+
+3. **DS algorithm number as a size signal** — the parent's DS RRset
+   already carries the child KSK's algorithm number, so a resolver
+   can recognize a likely-oversized DNSKEY RRset and query it over a
+   transport suitable for large responses directly, skipping the
+   truncated-UDP round trip.
 
 This document updates RFC 4035 and RFC 6840.
 
 ## Status
 
-Early **-00 working draft**. Several design points are still open and
-marked with `[[ EDITORIAL NOTE ]]` in the text — notably the precise
-normative definition of "an algorithm used only by a key-signing key,"
-and the form of the IANA registry annotation for algorithm size.
+Early **-00 working draft**.
 
 ## Authors
 
@@ -41,7 +44,7 @@ and the form of the IANA registry annotation for algorithm size.
 
 ## Current version
 
-[draft-johani-dnsop-dnssec-large-ksk-00.md](draft-johani-dnsop-dnssec-large-ksk-00.md)
+[draft-johani-dnsop-dnssec-large-ksk-sig-00.md](draft-johani-dnsop-dnssec-large-ksk-sig-00.md)
 — status: Internet-Draft, Standards Track, -00.
 
 ## Building the draft

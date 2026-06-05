@@ -1,5 +1,5 @@
 ---
-title: "Large Key-Signing Keys in DNSSEC: Algorithm Separation, Bounded ZSK Lifetime, and DS-Based Size Signaling"
+title: "Algorithm-Split DNSSEC: KSK/ZSK Algorithm Separation, Bounded ZSK Cadence, and DS-Based Size Signaling"
 abbrev: "Large KSKs in DNSSEC"
 category: std
 docname: draft-johani-dnsop-dnssec-large-ksk-sig-00
@@ -33,6 +33,7 @@ normative:
 
 informative:
   RFC6781:
+  I-D.johani-dnsop-dnssec-alg-private-ranges:
   FIPS204:
     title: "Module-Lattice-Based Digital Signature Standard"
     target: "https://csrc.nist.gov/pubs/fips/204/final"
@@ -52,7 +53,7 @@ informative:
 
 --- abstract
 
-Post-quantum DNSSEC signature algorithms have much larger keys and
+Post-quantum DNSSEC signature algorithms have much larger keys and/or
 signatures than the elliptic-curve algorithms in common use today.
 Signing an entire zone with such an algorithm inflates every signature
 in the zone. A natural transition strategy applies a large algorithm
@@ -101,7 +102,7 @@ the same operational pattern; the only difference is that the
 asymmetry crosses the algorithm-number boundary rather than a
 key-length boundary within a single algorithm. It is that crossing --
 not the strength asymmetry itself -- that interacts with the
-completeness rule of {{RFC4035}} and motivates the updates in this
+completeness rule of {{!RFC4035}} and motivates the updates in this
 document.
 
 This document specifies three changes that together enable this
@@ -141,7 +142,7 @@ argument (omitting part 2).
 {::boilerplate bcp14-tagged}
 
 This document uses "key-signing key" (KSK) and "zone-signing key" (ZSK)
-in the operational sense of {{RFC6781}}: a KSK is a key whose role is to
+in the operational sense of {{?RFC6781}}: a KSK is a key whose role is to
 sign the apex DNSKEY RRset and which is referenced by a DS record at the
 parent, while a ZSK signs the other RRsets of the zone. This
 KSK/ZSK distinction is operational; the DNSSEC protocol itself does not
@@ -154,7 +155,7 @@ in the parent DS RRset and the apex DNSKEY RRset (see {{p-algsep}}).
 
 ## The Current Rule
 
-Section 2.2 of {{RFC4035}}, as restated in Section 5.11 of {{RFC6840}},
+Section 2.2 of {{!RFC4035}}, as restated in Section 5.11 of {{!RFC6840}},
 governs which algorithms must be used to sign a zone. On the signer
 side: "The zone MUST also be signed with each algorithm (though not each
 key) present in the DNSKEY RRset." In other words, every RRset in the
@@ -168,8 +169,8 @@ large algorithm to the KSK.
 
 ## The Change (Signer Side)
 
-This document updates the signer-side requirement of {{RFC4035}} and
-{{RFC6840}} as follows. A zone MAY be signed under the following
+This document updates the signer-side requirement of {{!RFC4035}} and
+{{!RFC6840}} as follows. A zone MAY be signed under the following
 *algorithm-split profile*. Let K be the set of algorithms appearing in
 the parent DS RRset for the zone, and let Z be a non-empty set of
 algorithms disjoint from K (K and Z share no algorithm). The profile
@@ -205,13 +206,13 @@ than the existing ZSK-algorithm rollover for an all-ZSK zone, and its
 size cost is the same.
 
 A zone that does not match this profile remains subject to the existing
-completeness rule of {{RFC4035}} Section 2.2 and {{RFC6840}} Section
+completeness rule of {{!RFC4035}} Section 2.2 and {{!RFC6840}} Section
 5.11.
 
 ## The Change (Validator Side)
 
-This document also updates the validator-side behavior of {{RFC4035}}
-and {{RFC6840}}. When a validator processes a zone whose parent DS and
+This document also updates the validator-side behavior of {{!RFC4035}}
+and {{!RFC6840}}. When a validator processes a zone whose parent DS and
 apex DNSKEY RRsets match the algorithm-split profile of the preceding
 section, with KSK-algorithm set K and ZSK-algorithm set Z, the
 validator:
@@ -228,7 +229,7 @@ validator:
 
 A validator that supports some algorithm in K but no algorithm in Z
 treats the zone as it would any zone whose data signatures are in an
-unsupported algorithm (see Section 5.2 of {{RFC4035}}). A validator
+unsupported algorithm (see Section 5.2 of {{!RFC4035}}). A validator
 that supports no algorithm in K treats the delegation as Insecure, as
 today.
 
@@ -267,11 +268,15 @@ algorithm B being weaker than algorithm A.
 
 Without a normative bound on ZSK lifetime, this argument has no force:
 a long-lived ZSK gives a future adversary an unbounded opportunity to
-exploit a cryptanalytic advance. The completeness rule that this
-document relaxes was, in effect, providing such a bound by requiring
-every RRset to be signed under the strongest algorithm in the DNSKEY
-RRset. With the relaxation, an explicit cadence bound must take its
-place.
+exploit a cryptanalytic advance against algorithm B. The completeness
+rule of {{!RFC4035}} did not by itself prevent this scenario either --
+{{!RFC6840}} Section 5.11 permits a validator to validate using any
+single supported algorithm -- but it did make an algorithm-A
+signature available on every RRset, so a validator that supported A
+*could* choose to require it. The algorithm-split profile of
+{{p-algsep}} removes that option: under the profile, non-DNSKEY
+RRsets carry only algorithm-B signatures, and no validator can fall
+back to A. An explicit cadence bound on B must take its place.
 
 ## The Requirement
 
@@ -314,10 +319,11 @@ the child DS RRset against the threat -- a function of both that
 key's algorithm and the cadence at which the parent rolls it. A
 parent that signs with a strong algorithm needs to roll only at the
 normal operational cadence; a parent that signs with a weaker
-algorithm needs to roll faster, as {{p-zskcadence}} requires of any
-zone in this profile. Either way, the obligation is on the parent's
-own configuration, independent of whether any particular child uses
-the algorithm-split profile. {{s-root}} discusses the special case of
+algorithm needs to roll faster, to bound the window in which a future
+cryptanalytic break against that algorithm could be exploited.
+Either way, the obligation is on the parent's own configuration,
+independent of whether any particular child uses the algorithm-split
+profile. {{s-root}} discusses the special case of
 the root zone.
 
 # Part 3: DS Algorithm Number as a Size Signal for the DNSKEY RRset {#p-dssignal}
@@ -357,30 +363,22 @@ experiences the existing UDP-then-fallback behavior.
 ## Identifying Large Algorithms
 
 To apply this signal a resolver needs to map an algorithm number to the
-property "the DNSKEY RRset is likely too large for UDP." There are two
-ways to provide this mapping:
+property "the DNSKEY RRset is likely too large for UDP." This is
+necessarily a local lookup; a resolver does not consult an external
+registry at query time.
 
-1. Implementation knowledge: the resolver hard-codes which algorithms
-   are large.
+A compiled-in default set of algorithm numbers that are classified as
+"large" is a reasonable starting point, and resolver implementations
+are expected to ship such a default reflecting the algorithms known at
+the time of release.
 
-2. A registry annotation: a column in the "DNS Security Algorithm
-   Numbers" registry that records, for each algorithm, whether its
-   typical DNSKEY/RRSIG sizes are large for UDP purposes (or records
-   representative key and signature sizes from which a resolver can
-   decide).
-
-This document recommends approach 2 so that resolvers need not hard-code
-per-algorithm knowledge; see {{iana}}.
-
-## Composition with SVCB Transport Hints
-
-The signal defined here ("expect a large DNSKEY response") composes
-naturally with SVCB-based transport advertisement at the authoritative
-server ("here are the transports this server supports"). Together they
-let a resolver avoid both the truncation round trip and the need to
-guess transport availability, without this document picking transport
-winners. Specifications for SVCB-based transport advertisement are out
-of scope for this document.
+A compiled-in default is not sufficient on its own. Until the set of
+post-quantum DNSSEC algorithms in operational use has stabilized -- a
+process that will include experimentation, including through the
+experimental algorithm range suggested by
+{{?I-D.johani-dnsop-dnssec-alg-private-ranges}} -- resolver
+implementations SHOULD provide a configuration mechanism that allows
+the operator to override the compiled-in classification.
 
 ## Limitations
 
@@ -402,8 +400,11 @@ every TLD. The mechanisms of this document apply to the root zone with
 particular force. This section is a worked example: it illustrates how
 {{p-algsep}}, {{p-zskcadence}}, and {{p-dssignal}} apply at the root,
 and recommends a deployment profile. The normative requirements of
-{{p-algsep}} and {{p-zskcadence}} continue to apply; the recommendations
-here are non-normative.
+{{p-algsep}} and {{p-zskcadence}} continue to apply; the
+recommendations in this section are non-normative, with the
+exception of the resolver-transport recommendation in
+{{s-root-transport}}, which restates a SHOULD applicable to resolvers
+generally.
 
 ## Root KSK
 
@@ -447,17 +448,27 @@ which the key is rolled. The root zone operators have historically
 chosen and managed the root ZSK with this combined strength in mind,
 and are expected to continue doing so as threat estimates evolve.
 
-## Transport for Root Queries
+## Transport for Root Queries {#s-root-transport}
 
-A resolver makes relatively few distinct queries to the root zone over
-the lifetime of its cache. Because of this, the per-query cost of
-using a large-capable transport for *all* root queries is small in
-aggregate. Resolvers SHOULD therefore use a transport suitable for
-large responses (TCP, DoT, DoQ, or another) for queries to the root
-zone, rather than relying on the DS-based size signal of
-{{p-dssignal}} for the root case. This sidesteps the truncation round
-trip not only for the root DNSKEY query but also for any TLD DS query
-whose response includes large signatures from the root ZSK.
+The root zone is a special case for the DS-based size signal of
+{{p-dssignal}}: by construction it has no parent, so no DS RRset
+exists from which a resolver could learn that the root's KSK uses an
+algorithm with large signatures. Resolvers therefore cannot apply
+the size-signal logic of {{p-dssignal}} to root queries, and must
+rely on out-of-band knowledge instead.
+
+This document takes a forward-looking position: well in advance of
+any rollover of the root zone to a PQ-safe algorithm with large
+signatures, resolvers SHOULD adopt a transport suitable for large
+responses (TCP, DoT, DoQ, or another) for all queries to the root
+zone, rather than UDP/53. Resolvers make relatively few distinct
+queries to the root zone over the lifetime of their caches, so the
+per-query cost of doing this for all root queries is small in
+aggregate, and the transition to a large-signature root then becomes
+operationally invisible to resolvers that have already moved their
+root traffic off UDP/53. A costly flag-day caused by widespread
+truncation events at the moment of a root rollover is thereby
+avoided.
 
 A consequence of the preceding paragraph is that the size constraints
 on the root zone are largely a question of cache and bandwidth, not of
@@ -467,11 +478,11 @@ than would be acceptable for a zone served predominantly over UDP.
 # Operational Considerations
 
 The large DNSKEY RRset of an algorithm-split zone is retrieved and
-validated once per resolver and then cached; subsequent queries for
-ordinary zone data return small, ZSK-signed responses that fit
-comfortably in UDP. The large object is thus a one-time-per-cache
-cost, which {{p-dssignal}} further reduces by avoiding the
-truncated-UDP round trip.
+validated once per DNSKEY-TTL per resolver and then cached; subsequent
+queries for ordinary zone data return small, ZSK-signed responses
+that fit comfortably in UDP. The large object is thus a
+once-per-TTL-per-cache cost, which {{p-dssignal}} further reduces by
+avoiding the truncated-UDP round trip.
 
 Rolling a large KSK transiently enlarges the DNSKEY RRset further, as
 it must hold both the outgoing and incoming KSKs during the rollover.
@@ -493,47 +504,37 @@ the profile.
 
 ## Why the Completeness Relaxation Is Safe
 
-The DNSSEC algorithm-completeness rule of {{RFC4035}} Section 2.2 and
-{{RFC6840}} Section 5.11 exists to prevent algorithm-downgrade attacks
-in deployments where multiple algorithms play *peer* roles: each
-algorithm is independently capable of authenticating zone data, and an
-attacker who breaks the weaker of two peers can forge data and strip
-signatures from the stronger one. Completeness ensures that every
-RRset is independently protected under every algorithm a validator
-might choose.
+The DNSSEC algorithm-completeness rule of {{!RFC4035}} Section 2.2
+and {{!RFC6840}} Section 5.11 exists to prevent algorithm-downgrade
+attacks in deployments where multiple algorithms play *peer* roles:
+each algorithm is independently capable of authenticating zone data,
+and an attacker who breaks the weaker of two peers can forge data
+and strip signatures from the stronger one. Completeness ensures
+that every RRset is independently protected under every algorithm a
+validator might choose, and operator policy can require validation
+under the strongest available algorithm.
 
 In the algorithm-split profile of {{p-algsep}}, the KSK-side and
 ZSK-side algorithms are *not* peers. They occupy distinct,
-structurally asymmetric roles in a fixed chain of trust. As in
-{{p-zskcadence}}, the description below uses the steady-state case
-with KSK algorithm A and ZSK algorithm B; the argument extends
-directly to rollover windows with |K| > 1 or |Z| > 1.
+structurally asymmetric roles in a fixed chain of trust, derived in
+{{p-zskcadence}}: an adversary who breaks the ZSK algorithm cannot
+substitute a ZSK of their own choosing without also forging a
+KSK-algorithm signature on the apex DNSKEY RRset. The peer-role
+attack that completeness was designed to prevent does not apply,
+because the algorithms are not peers.
 
-1. The parent's DS RRset (containing only KSK-side algorithms; in the
-   steady state, only algorithm A) authenticates the child's KSK.
-2. The KSK (algorithm A) authenticates the apex DNSKEY RRset, which
-   contains the ZSK (algorithm B) as authenticated key material.
-3. The ZSK (algorithm B) signs the non-DNSKEY RRsets of the zone.
+What completeness *did* provide, even outside the peer-role case,
+was an unforgeable upper bound on the lifetime of an attacker's
+forgery window: a non-DNSKEY RRset signed under both algorithms
+gave an A-supporting validator the option to require an A signature
+and thereby refuse any B-only forgery. The algorithm-split profile
+removes that fallback. The cadence requirement of {{p-zskcadence}}
+takes its place: instead of being prevented by signature redundancy,
+the forgery window is bounded by ZSK lifetime.
 
-There is no path by which a successful attack on algorithm B yields
-authority over algorithm A's role. An adversary who breaks algorithm B
-can forge signatures that validate against a *currently published* ZSK,
-but cannot substitute a ZSK of their own choosing without forging an
-algorithm-A signature on the apex DNSKEY RRset. The adversary's
-forgery capability is therefore bounded in time by the lifetime of the
-currently published ZSK.
-
-The safety argument for this document is thus *structural asymmetry
-plus bounded ZSK lifetime*, not preserved completeness. This is why
-{{p-algsep}} and {{p-zskcadence}} are inseparable: the completeness
-relaxation is safe only in combination with the cadence requirement.
-
-The strength asymmetry between KSK and ZSK is itself not new; the
-common RSA practice of pairing a longer-key KSK with a shorter-key
-ZSK is exactly this pattern. What is new under this document is that
-the asymmetry crosses the algorithm-number boundary, which is what
-triggers the completeness rule and motivates the relaxation specified
-here.
+The safety argument for this document is therefore *structural
+asymmetry plus bounded ZSK lifetime*. This is why {{p-algsep}} and
+{{p-zskcadence}} are inseparable.
 
 ## Threat Model for the Transition
 
@@ -562,24 +563,20 @@ computer capable of breaking algorithm B. Under that threat:
 
 ## Cross-Zone Dependency
 
-As noted in {{p-zskcadence}}, the security of a zone signed under the
-algorithm-split profile depends on the strength of the key with which
-its parent signs the child DS RRset -- typically the parent's ZSK, or
-a CSK where the parent operates with one. That strength is a function
-of both the algorithm and the rotation cadence: a parent signing with
-a strong algorithm can roll at the normal operational cadence, while
-a parent signing with a weaker algorithm must roll faster to bound an
-adversary's forgery window. Either way, a weak parent signature
-undermines its children's KSK authenticity even when those children
-deploy the profile correctly. This is a general DNSSEC property -- a
-zone is no more trustworthy than the weakest link between it and the
-trust anchor -- not a novel weakness introduced by this document, but
-the property becomes more visible when the child relies on a much
-stronger KSK algorithm than the key with which the parent signs the
-child's DS. Operators of zones with DNSSEC-aware children SHOULD
-treat the strength of their DS-signing key (algorithm and cadence
-together) as a security parameter of their children, not solely of
-themselves.
+{{p-zskcadence}} establishes that a child zone in the algorithm-split
+profile is no more secure than the parent's signature on its DS
+RRset. This is a general DNSSEC property and not a novel weakness,
+but the algorithm-split profile makes it operationally visible: a
+child KSK that uses a strong post-quantum algorithm can give the
+misleading impression that the child is post-quantum-secure
+end-to-end, when in fact the parent's DS-signing key -- typically a
+classical ZSK -- remains the binding strength of the chain until the
+parent itself transitions.
+
+The operational implication: a parent whose children adopt the
+algorithm-split profile SHOULD treat the strength of its DS-signing
+key (algorithm and rotation cadence together) as a security
+parameter of those children, not solely of itself.
 
 ## Transport Signal
 
@@ -591,18 +588,10 @@ whether data validates.
 
 # IANA Considerations {#iana}
 
-{{p-algsep}} and {{p-zskcadence}} require no IANA action; they update
-the signing and validation rules of {{RFC4035}} and {{RFC6840}}.
-
-For {{p-dssignal}}, IANA is requested to add an annotation to the
-"DNS Security Algorithm Numbers" registry indicating, for each
-algorithm, whether its typical DNSKEY and RRSIG sizes are large for
-the purpose of UDP transport (or recording representative key and
-signature sizes).
-
-> **Editorial note (open issue):** The exact form of the annotation (a
-new column, its permitted values, and the registration policy for
-populating it) is to be specified.
+This document requires no IANA action. {{p-algsep}} and
+{{p-zskcadence}} update the signing and validation rules of
+{{!RFC4035}} and {{!RFC6840}}, and {{p-dssignal}} is a resolver-side
+local optimization.
 
 --- back
 
