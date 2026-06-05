@@ -292,11 +292,10 @@ As an initial guideline, operators of algorithm-split zones SHOULD
 begin with T no greater than one month, and SHOULD be prepared to
 reduce T to one week or less as threat estimates against algorithm B
 sharpen. Operators SHOULD treat T as a tunable policy parameter rather
-than a static configuration value, and SHOULD make their current T
-auditable to relying parties where practical.
+than a static configuration value.
 
-Signing implementations (including BIND, Knot, OpenDNSSEC, Cascade,
-and others) are expected to encode per-algorithm minimum cadences as
+Signing implementations (including BIND, Knot, Cascade, and others)
+are expected to encode per-algorithm minimum cadences as
 policy and to refuse to operate a zone under the algorithm-split
 profile with a ZSK lifetime exceeding those minima. Such policies are
 out of scope for this document, which only requires that *some*
@@ -363,9 +362,7 @@ experiences the existing UDP-then-fallback behavior.
 ## Identifying Large Algorithms
 
 To apply this signal a resolver needs to map an algorithm number to the
-property "the DNSKEY RRset is likely too large for UDP." This is
-necessarily a local lookup; a resolver does not consult an external
-registry at query time.
+property "the DNSKEY RRset is likely too large for UDP."
 
 A compiled-in default set of algorithm numbers that are classified as
 "large" is a reasonable starting point, and resolver implementations
@@ -453,22 +450,21 @@ and are expected to continue doing so as threat estimates evolve.
 The root zone is a special case for the DS-based size signal of
 {{p-dssignal}}: by construction it has no parent, so no DS RRset
 exists from which a resolver could learn that the root's KSK uses an
-algorithm with large signatures. Resolvers therefore cannot apply
-the size-signal logic of {{p-dssignal}} to root queries, and must
-rely on out-of-band knowledge instead.
+algorithm with large signatures. The size-signal logic of
+{{p-dssignal}} therefore does not apply to root queries.
 
 This document takes a forward-looking position: well in advance of
 any rollover of the root zone to a PQ-safe algorithm with large
 signatures, resolvers SHOULD adopt a transport suitable for large
 responses (TCP, DoT, DoQ, or another) for all queries to the root
 zone, rather than UDP/53. Resolvers make relatively few distinct
-queries to the root zone over the lifetime of their caches, so the
-per-query cost of doing this for all root queries is small in
-aggregate, and the transition to a large-signature root then becomes
-operationally invisible to resolvers that have already moved their
-root traffic off UDP/53. A costly flag-day caused by widespread
-truncation events at the moment of a root rollover is thereby
-avoided.
+queries to the root zone in steady state, so the per-query cost of
+doing this for all root queries is small in aggregate, and the
+transition to a large-signature root then becomes operationally
+invisible to resolvers that have already moved their root traffic
+off UDP/53. A coordinated truncation event affecting the entire
+resolver population at the moment of a root rollover to a
+large-signature algorithm is thereby avoided.
 
 A consequence of the preceding paragraph is that the size constraints
 on the root zone are largely a question of cache and bandwidth, not of
