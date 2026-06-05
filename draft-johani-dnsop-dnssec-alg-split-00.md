@@ -618,6 +618,6 @@ The author acknowledges that Ondřej Surý arrived independently at the
 idea of splitting the KSK and ZSK algorithms, and thanks him for
 substantive discussions on this topic during RIPE 92.
 
-The author also thanks Christian Elmerot (Cloudflare), Peter
-Thomassen (deSEC), and Erik Bergström (Swedish Internet Foundation)
-for valuable insights and suggestions.
+The author also thanks Joe Abley (Cloudflare), Christian Elmerot
+(Cloudflare), Peter Thomassen (deSEC), and Erik Bergström (Swedish
+Internet Foundation) for valuable insights and suggestions.
