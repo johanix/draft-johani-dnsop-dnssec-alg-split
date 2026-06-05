@@ -33,7 +33,7 @@ normative:
 
 informative:
   RFC6781:
-  I-D.johani-dnsop-dnssec-alg-private-ranges:
+  I-D.johani-dnsop-dnssec-alg-experimental-ranges:
   FIPS204:
     title: "Module-Lattice-Based Digital Signature Standard"
     target: "https://csrc.nist.gov/pubs/fips/204/final"
@@ -389,7 +389,7 @@ A compiled-in default is not sufficient on its own. Until the set of
 post-quantum DNSSEC algorithms in operational use has stabilized -- a
 process that will include experimentation, including through the
 experimental algorithm range suggested by
-{{?I-D.johani-dnsop-dnssec-alg-private-ranges}} -- resolver
+{{?I-D.johani-dnsop-dnssec-alg-experimental-ranges}} -- resolver
 implementations SHOULD provide a configuration mechanism that allows
 the operator to override the compiled-in classification.
 
