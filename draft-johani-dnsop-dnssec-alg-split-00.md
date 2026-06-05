@@ -1,8 +1,8 @@
 ---
 title: "Algorithm-Split DNSSEC: KSK/ZSK Algorithm Separation, Bounded ZSK Cadence, and DS-Based Size Signaling"
-abbrev: "Large KSKs in DNSSEC"
+abbrev: "Algorithm-Split DNSSEC"
 category: std
-docname: draft-johani-dnsop-dnssec-large-ksk-sig-00
+docname: draft-johani-dnsop-dnssec-alg-split-00
 submissiontype: IETF
 ipr: trust200902
 area: "Internet"

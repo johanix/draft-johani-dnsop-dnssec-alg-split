@@ -1,4 +1,4 @@
-DRAFT = draft-johani-dnsop-dnssec-large-ksk-sig
+DRAFT = draft-johani-dnsop-dnssec-alg-split
 VERSION = 00
 
 all: $(DRAFT)-$(VERSION).txt $(DRAFT)-$(VERSION).html

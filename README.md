@@ -1,4 +1,4 @@
-# draft-johani-dnsop-dnssec-large-ksk-sig
+# draft-johani-dnsop-dnssec-alg-split
 
 IETF Internet-Draft:
 **Algorithm-Split DNSSEC: KSK/ZSK Algorithm Separation, Bounded ZSK
@@ -44,7 +44,7 @@ Early **-00 working draft**.
 
 ## Current version
 
-[draft-johani-dnsop-dnssec-large-ksk-sig-00.md](draft-johani-dnsop-dnssec-large-ksk-sig-00.md)
+[draft-johani-dnsop-dnssec-alg-split-00.md](draft-johani-dnsop-dnssec-alg-split-00.md)
 — status: Internet-Draft, Standards Track, -00.
 
 ## Building the draft
