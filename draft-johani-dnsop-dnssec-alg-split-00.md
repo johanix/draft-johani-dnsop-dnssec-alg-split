@@ -205,6 +205,22 @@ ZSK-algorithm rollover under this profile is no easier and no harder
 than the existing ZSK-algorithm rollover for an all-ZSK zone, and its
 size cost is the same.
 
+The profile is defined in terms of algorithm separation and
+strength asymmetry alone; it does not assume any particular
+character for either algorithm. In the most-discussed near-term
+deployment, the KSK algorithm is post-quantum and the ZSK
+algorithm is a classical elliptic-curve algorithm, but the profile
+applies equally when both KSK and ZSK algorithms are
+post-quantum -- in particular when the ZSK algorithm is a
+post-quantum scheme whose signatures are small enough to be
+acceptable on every RRset in the zone but whose long-term security
+margin is insufficient for a KSK that rolls slowly. As the set of
+standardized post-quantum signature algorithms grows, the profile
+is expected to admit an increasing range of ZSK choices whose
+strength against future cryptanalysis informs only the cadence
+requirement of {{p-zskcadence}}, not the structural shape of the
+profile itself.
+
 A zone that does not match this profile remains subject to the existing
 completeness rule of {{!RFC4035}} Section 2.2 and {{!RFC6840}} Section
 5.11.
@@ -534,11 +550,15 @@ asymmetry plus bounded ZSK lifetime*. This is why {{p-algsep}} and
 
 ## Threat Model for the Transition
 
-During the transition contemplated by this document, algorithm A is
-post-quantum (or otherwise expected to be long-lived) and algorithm B
-is a traditional algorithm such as ECDSA or Ed25519. The most relevant
-threat is the future arrival of a cryptographically relevant quantum
-computer capable of breaking algorithm B. Under that threat:
+In the most-discussed near-term transition, algorithm A is
+post-quantum (or otherwise expected to be long-lived) and algorithm
+B is a traditional algorithm such as ECDSA or Ed25519. The
+remainder of this section uses that instance as the worked example;
+the analysis carries over to the more general case where algorithm
+B is post-quantum but with a shorter security margin than algorithm
+A. The most relevant threat in the near-term case is the future
+arrival of a cryptographically relevant quantum computer capable of
+breaking algorithm B. Under that threat:
 
 * Long-term data integrity guarantees for non-DNSKEY RRsets are not
   provided by this document; an attacker with a CRQC can forge
