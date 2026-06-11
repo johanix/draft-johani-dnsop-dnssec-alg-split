@@ -535,6 +535,16 @@ KSK-algorithm signature on the apex DNSKEY RRset. The peer-role
 attack that completeness was designed to prevent does not apply,
 because the algorithms are not peers.
 
+This eliminates peer-substitution downgrade outright. It does not,
+however, preserve the residual forgery-window bound that completeness
+afforded even outside the peer-role case; the relaxation trades that
+absolute guarantee (a forgery under the weaker algorithm cannot
+validate at all) for a time-bounded one (such a forgery validates only
+within a single ZSK's lifetime). The next paragraph describes that
+residual guarantee, and {{p-zskcadence}} restores it by other means.
+The safety claim of this document is therefore a claim about the
+combination, not about the relaxation in isolation.
+
 What completeness *did* provide, even outside the peer-role case,
 was an unforgeable upper bound on the lifetime of an attacker's
 forgery window: a non-DNSKEY RRset signed under both algorithms
