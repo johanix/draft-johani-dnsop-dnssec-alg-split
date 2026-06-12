@@ -21,6 +21,8 @@ venue:
   mail: "dnsop@ietf.org"
   arch: "https://mailarchive.ietf.org/arch/browse/dnsop/"
 
+stand_alone: yes
+
 author:
  -
     fullname: Johan Stenstam
