@@ -1,8 +1,8 @@
 # draft-johani-dnsop-dnssec-alg-split
 
 IETF Internet-Draft:
-**Algorithm-Split DNSSEC: KSK/ZSK Algorithm Separation, Bounded ZSK
-Cadence, and DS-Based Size Signaling**
+**Algorithm-Split DNSSEC: KSK/ZSK Algorithm Separation with Bounded
+ZSK Cadence**
 
 ## Summary
 

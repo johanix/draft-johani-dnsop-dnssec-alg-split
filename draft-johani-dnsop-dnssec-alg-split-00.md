@@ -1,5 +1,5 @@
 ---
-title: "Algorithm-Split DNSSEC: KSK/ZSK Algorithm Separation, Bounded ZSK Cadence, and DS-Based Size Signaling"
+title: "Algorithm-Split DNSSEC: KSK/ZSK Algorithm Separation with Bounded ZSK Cadence"
 abbrev: "Algorithm-Split DNSSEC"
 category: std
 docname: draft-johani-dnsop-dnssec-alg-split-00
@@ -27,13 +27,7 @@ author:
     organization: The Swedish Internet Foundation
     email: johan.stenstam@internetstiftelsen.se
 
-normative:
-  RFC4035:
-  RFC6840:
-
 informative:
-  RFC6781:
-  I-D.johani-dnsop-dnssec-alg-experimental-ranges:
   FIPS204:
     title: "Module-Lattice-Based Digital Signature Standard"
     target: "https://csrc.nist.gov/pubs/fips/204/final"
@@ -304,6 +298,19 @@ progress and on the deployment of cryptographically relevant quantum
 computers (CRQCs), neither of which can be predicted at the time of
 writing.
 
+The appropriate value of T is a matter of operator security policy. It
+is informed by external threat tracking -- for example, the
+post-quantum cryptanalysis guidance of the IETF (notably the Crypto
+Forum Research Group) and of national bodies such as NIST's
+post-quantum cryptography project -- rather than fixed by this
+document. Operationally, T is expressed as the ZSK effectivity period
+and realized using the established key-rollover machinery of
+{{?RFC6781}} and the rollover-timing parameters of {{?RFC7583}}; what
+the algorithm-split profile adds is only that this period is now a
+security parameter compensating for the strength asymmetry between
+algorithms A and B, not merely an operational-convenience interval as
+in {{?RFC6781}}.
+
 As an initial guideline, operators of algorithm-split zones SHOULD
 begin with T no greater than one month, and SHOULD be prepared to
 reduce T to one week or less as threat estimates against algorithm B
@@ -389,7 +396,7 @@ A compiled-in default is not sufficient on its own. Until the set of
 post-quantum DNSSEC algorithms in operational use has stabilized -- a
 process that will include experimentation, including through the
 experimental algorithm range suggested by
-{{?I-D.johani-dnsop-dnssec-alg-experimental-ranges}} -- resolver
+{{?I-D.johani-dnsop-dnssec-alg-experimental-range}} -- resolver
 implementations SHOULD provide a configuration mechanism that allows
 the operator to override the compiled-in classification.
 
