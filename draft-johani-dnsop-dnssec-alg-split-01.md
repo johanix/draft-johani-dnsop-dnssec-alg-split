@@ -101,6 +101,32 @@ not the strength asymmetry itself -- that interacts with the
 completeness rule of {{!RFC4035}} and motivates the updates in this
 document.
 
+The deeper motivation is to decouple two requirements that a single
+zone algorithm is forced to satisfy at once. A KSK and a ZSK protect
+very different things and are exposed in very different ways, yet today
+both must be the same algorithm, so that algorithm has to satisfy the
+union of both roles' constraints. In practice the binding constraint
+is the ZSK's: the algorithm must produce signatures small enough that
+ordinary responses do not overflow common UDP size limits. That
+"ZSK property" -- small signatures -- ends up dictating the algorithm
+for the KSK as well, even though the property that actually matters for
+a KSK is a different one: strength great enough that the key need never
+be rolled merely because its algorithm has become too weak. A KSK
+signs only the apex DNSKEY RRset, so its signature size is nearly
+irrelevant; what matters is its longevity as a trust anchor. Today the
+small-signature requirement of the ZSK role effectively caps the
+strength available to the KSK role.
+
+Algorithm splitting removes that coupling. For the first time it
+becomes possible to choose each key's algorithm for the property that
+matters most in that key's role -- a strong, long-lived (for example
+post-quantum) algorithm for the KSK, whose large signatures are
+confined to the DNSKEY RRset, and a small-signature algorithm for the
+ZSK, whose signatures appear on every RRset. Seen this way, the
+primary effect of this document is not that the ZSK becomes weaker; it
+is that the KSK is, for the first time, allowed to be much stronger
+than the "fits in a UDP response" constraint would otherwise permit.
+
 This document specifies three changes that together enable this
 deployment pattern:
 
@@ -567,6 +593,53 @@ The safety argument for this document is therefore *structural
 asymmetry plus bounded ZSK lifetime*. This is why {{p-algsep}} and
 {{p-zskcadence}} are inseparable.
 
+## What the Validator Can and Cannot Verify
+
+The time-bounded guarantee of {{p-zskcadence}} rests on the zone
+operator actually rolling the ZSK at the required cadence. A validator
+cannot verify this: nothing in the DS RRset, the DNSKEY RRset, or the
+signatures reveals how often the ZSK is rolled, or whether it is ever
+rolled at all. The relaxation therefore asks the validator to accept
+ZSK-signed data on the strength of an operator obligation it cannot
+check.
+
+This is not a new property introduced by this document. A validator
+has never been able to observe an operator's key-rotation behaviour,
+and in practice a large fraction of signed zones roll their keys rarely
+or never -- historically because rolling was perceived as difficult or
+risky, and operationally because nothing forces it. The absolute
+forgery-window bound that completeness is sometimes credited with was,
+for those zones, already unrealised: it required both that the operator
+maintain genuine multi-algorithm coverage and that a validator choose
+to demand the stronger algorithm. Against that real-world baseline, a
+diligently rolled ZSK under {{p-zskcadence}} is *stronger*, not weaker,
+than the prevailing practice.
+
+## The ZSK Need Not Be the Weak Link
+
+The worked threat model below, and much of the language in
+{{p-zskcadence}}, analyses the demanding case in which the ZSK
+algorithm B is materially weaker than the KSK algorithm A -- typically
+a classical ZSK (ECDSA, Ed25519) paired with a post-quantum KSK. That
+case is analysed deliberately, because a profile that is safe when the
+ZSK is the weak link is safe *a fortiori* when it is not.
+
+The intended deployment, however, is not that case. The expectation is
+that the ZSK algorithm is itself post-quantum, with a security margin
+comparable to the long-lived classical keys (such as 2048-bit or larger
+RSA) that are, in practice, rarely or never rolled today -- chosen for
+the "ZSK property" of small signatures rather than for a short security
+horizon. When the ZSK is that strong, the cadence requirement of
+{{p-zskcadence}} is a conservative margin rather than the sole barrier
+to forgery, and the net effect of the profile is almost entirely on the
+other side of the split: it lets the KSK, for the first time, be chosen
+for strength and longevity instead of being held down to the ZSK's
+size constraint. The proposal is better understood as a gain in
+trust-anchor strength than as a concession in ZSK strength. (The
+cross-zone dependency of {{cross-zone-dependency}} still applies: until
+a zone's parent transitions, the strength of the parent's DS-signing
+key, not the child's KSK, caps the chain.)
+
 ## Threat Model for the Transition
 
 In the most-discussed near-term transition, algorithm A is
@@ -640,3 +713,26 @@ substantive discussions on this topic during RIPE 92.
 The author also thanks Joe Abley (Cloudflare), Christian Elmerot
 (Cloudflare), Peter Thomassen (deSEC), and Erik Bergström (Swedish
 Internet Foundation) for valuable insights and suggestions.
+
+# Change History (to be removed before publication)
+{:numbered="false"}
+
+## draft-johani-dnsop-dnssec-alg-split-01
+{:numbered="false"}
+
+* Reframed the motivation: a single zone algorithm today must satisfy
+  both key roles' constraints at once, and the binding constraint is
+  the ZSK's small-signature requirement, which caps the strength
+  available to the KSK. Algorithm splitting lets each key's algorithm
+  be chosen for the property that matters in its role; the primary
+  effect is a stronger KSK, not a weaker ZSK (Introduction).
+* Added "What the Validator Can and Cannot Verify": the validator
+  cannot observe ZSK rotation cadence, but this is a pre-existing
+  property of DNSSEC, not a new weakness, and a diligently rolled ZSK
+  is stronger than the no-roll practice common today (Security
+  Considerations).
+* Added "The ZSK Need Not Be the Weak Link": clarified that the
+  classical-ZSK threat model is analysed as the conservative worst
+  case, while the intended deployment uses a PQ-safe ZSK whose strength
+  is comparable to long-lived keys that are rarely rolled today
+  (Security Considerations).
