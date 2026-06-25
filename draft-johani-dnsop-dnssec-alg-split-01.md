@@ -1,5 +1,5 @@
 ---
-title: "Algorithm-Split DNSSEC: KSK/ZSK Algorithm Separation with Bounded ZSK Cadence"
+title: "Algorithm-Split DNSSEC: KSK/ZSK Algorithm Separation"
 abbrev: "Algorithm-Split DNSSEC"
 category: std
 docname: draft-johani-dnsop-dnssec-alg-split-01
@@ -50,25 +50,27 @@ informative:
 --- abstract
 
 Post-quantum DNSSEC signature algorithms have much larger keys and/or
-signatures than the elliptic-curve algorithms in common use today.
-Signing an entire zone with such an algorithm inflates every signature
-in the zone. A natural transition strategy applies a large algorithm
-only to the key-signing key (KSK), which signs only the apex DNSKEY
-RRset, while the bulk of the zone continues to be signed with a smaller
-zone-signing key (ZSK).
+signatures than the elliptic-curve algorithms in common use today. For
+any such algorithm the apex DNSKEY RRset grows, since it carries the
+key material; the open question is whether the rest of the zone has to
+grow with it. A key-signing key (KSK) signs only the apex DNSKEY RRset,
+so its signature size is nearly irrelevant; a zone-signing key (ZSK)
+signs every other RRset, so keeping its signatures small is what keeps
+ordinary responses small. Confining a large algorithm to the KSK, and
+using a small-signature algorithm for the ZSK, keeps the cost of the
+large algorithm contained in the DNSKEY RRset.
 
-This document specifies the three changes that, taken together, make
-this pattern safe and practical: (1) it relaxes the DNSSEC signing rule
-that requires a zone to be signed with every algorithm present in the
-apex DNSKEY RRset, so that an algorithm used only by a key-signing key
-need not be applied to the rest of the zone; (2) it imposes a bounded
-ZSK rotation cadence as the security parameter that compensates for the
-asymmetric strength of the two algorithms; and (3) it specifies how a
-resolver can use the algorithm number in the parent's DS RRset to
-recognize a likely-oversized DNSKEY RRset and select a transport
-suitable for large responses, avoiding the truncate-then-retry round
-trip. The three parts are interdependent and constitute a single
-proposal. This document updates RFC 4035 and RFC 6840.
+This document specifies the changes that make this pattern safe and
+practical: (1) it relaxes the DNSSEC signing rule that requires a zone
+to be signed with every algorithm present in the apex DNSKEY RRset, so
+that an algorithm used only by a key-signing key need not be applied to
+the rest of the zone; (2) it requires the ZSK to be rolled at an
+appropriate cadence, which bounds the residual exposure of the ZSK
+algorithm; and (3) it specifies how a resolver can use the algorithm
+number in the parent's DS RRset to recognize a likely-oversized DNSKEY
+RRset and select a transport suitable for large responses, avoiding the
+truncate-then-retry round trip. This document updates RFC 4035 and
+RFC 6840.
 
 --- middle
 
@@ -80,7 +82,7 @@ post-quantum signature algorithms standardized by NIST -- ML-DSA
 have public keys and signatures that are one to two orders of magnitude
 larger than the elliptic-curve algorithms (ECDSA, Ed25519) in common use
 today. Signing an entire zone with such an algorithm inflates every
-RRSIG in the zone and every signed response.
+RRSIG in the zone, and with it every signed response.
 
 A natural transition strategy is to apply a large (for example,
 post-quantum) algorithm only where its cost is bounded -- the
@@ -136,13 +138,13 @@ deployment pattern:
    that rule for an algorithm used solely by a key-signing key, so that
    a large KSK algorithm need not be applied to every RRset in the zone.
 
-2. A bounded ZSK rotation cadence ({{p-zskcadence}}). When the KSK and
-   ZSK use different algorithms of different strengths, the security of
-   the zone depends not on algorithmic completeness but on limiting the
-   useful lifetime of any ZSK an adversary might break. This document
-   requires the ZSK to be rolled at a cadence appropriate to the threat
-   estimate against the ZSK algorithm, and expects that cadence to
-   tighten over time.
+2. A bounded ZSK rotation cadence ({{p-zskcadence}}). Rolling the ZSK
+   at an appropriate cadence bounds the window in which a break of the
+   ZSK algorithm could be exploited. For the intended deployment, in
+   which the ZSK algorithm is itself PQ-safe, this is an ordinary
+   rotation schedule; the cadence becomes a tighter security parameter
+   only in the fallback case where the ZSK algorithm is weaker than the
+   KSK algorithm (for example a classical ZSK during the transition).
 
 3. Using the DS algorithm number to signal a large DNSKEY RRset
    ({{p-dssignal}}). Because the parent's DS RRset carries the child
@@ -152,12 +154,14 @@ deployment pattern:
    large responses (TCP, DoT, DoQ, or another) directly -- avoiding a
    truncated UDP response and the consequent retry.
 
-The three parts are interdependent and constitute a single proposal.
-Part 1 makes the deployment pattern possible; part 2 is the security
-parameter that makes part 1 safe; part 3 makes the resulting transport
-profile efficient. Implementations that adopt only some of these
-changes either lose efficiency (omitting part 3) or weaken the security
-argument (omitting part 2).
+The three parts work together. Part 1 makes the deployment pattern
+possible; part 2 bounds the residual exposure of the ZSK algorithm; part
+3 makes the resulting transport profile efficient. The safety of the
+relaxation in Part 1 rests on the structural asymmetry between the KSK
+and ZSK roles (see {{security}}), which holds independently of the
+cadence; Part 2 then bounds whatever residual exposure remains. Part 3
+is a pure efficiency optimization that a resolver may implement or
+ignore.
 
 # Conventions and Definitions
 
@@ -227,19 +231,17 @@ ZSK-algorithm rollover under this profile is no easier and no harder
 than the existing ZSK-algorithm rollover for an all-ZSK zone, and its
 size cost is the same.
 
-The profile is defined in terms of algorithm separation and
-strength asymmetry alone; it does not assume any particular
-character for either algorithm. In the most-discussed near-term
-deployment, the KSK algorithm is post-quantum and the ZSK
-algorithm is a classical elliptic-curve algorithm, but the profile
-applies equally when both KSK and ZSK algorithms are
-post-quantum -- in particular when the ZSK algorithm is a
-post-quantum scheme whose signatures are small enough to be
-acceptable on every RRset in the zone but whose long-term security
-margin is insufficient for a KSK that rolls slowly. As the set of
-standardized post-quantum signature algorithms grows, the profile
-is expected to admit an increasing range of ZSK choices whose
-strength against future cryptanalysis informs only the cadence
+The profile is defined in terms of algorithm separation alone; it does
+not assume any particular character for either algorithm. In the
+intended deployment both algorithms are post-quantum -- a strong,
+long-lived KSK algorithm paired with a ZSK algorithm whose signatures
+are small enough to be acceptable on every RRset in the zone. The
+profile applies equally in a transitional deployment where the KSK
+algorithm is post-quantum but the ZSK algorithm is still a classical
+elliptic-curve algorithm. As the set of standardized post-quantum
+signature algorithms grows, the profile is expected to admit an
+increasing range of ZSK choices; the strength of the chosen ZSK
+algorithm against future cryptanalysis informs only the cadence
 requirement of {{p-zskcadence}}, not the structural shape of the
 profile itself.
 
@@ -277,16 +279,34 @@ to mark every algorithm-split zone as Bogus. Implementations that
 support this document MUST therefore implement the relaxation on both
 the signer and validator sides.
 
+This relaxation is defined structurally, in terms of the parent DS and
+apex DNSKEY contents alone, and does not depend on which algorithms
+appear in K. A validator MAY nonetheless apply a stricter local policy
+-- for example, accepting the relaxation only when the KSK algorithm is
+in an operator-configured set. This is additive local caution, not a
+change to the acceptance rule defined here, and is analogous to the
+algorithm denylists validators may already maintain; like the
+classifier of {{p-dssignal}}, it is best expressed as a compiled-in
+default that the operator can override.
+
 # Part 2: Bounded ZSK Rotation Cadence {#p-zskcadence}
 
-## Why a Cadence Bound Is Required
+## What the Cadence Bound Does
 
-Under the algorithm-split profile of {{p-algsep}}, the KSK and ZSK
-algorithms are not peers. For readability the rest of this section
-describes the steady-state case |K| = |Z| = 1 with KSK algorithm A and
-ZSK algorithm B; the argument extends directly to rollover windows
-where K or Z is larger, in which case every algorithm in K plays the
-role of A and every algorithm in Z plays the role of B.
+The safety of the completeness relaxation rests on the structural
+asymmetry between the KSK and ZSK roles, derived in {{security}}: an
+adversary who breaks the ZSK algorithm cannot substitute a ZSK of their
+own without also forging a KSK-algorithm signature. That argument holds
+regardless of how often the ZSK is rolled. What the rotation cadence
+adds is a bound on the *residual* exposure -- the window during which a
+break of the ZSK algorithm could be used to forge data that validates
+against a currently published ZSK.
+
+For readability the rest of this section describes the steady-state case
+|K| = |Z| = 1 with KSK algorithm A and ZSK algorithm B; the argument
+extends directly to rollover windows where K or Z is larger, in which
+case every algorithm in K plays the role of A and every algorithm in Z
+plays the role of B.
 
 The KSK algorithm A and the ZSK algorithm B occupy distinct positions
 in a fixed chain of trust:
@@ -297,53 +317,60 @@ in a fixed chain of trust:
    (algorithm B) as key material.
 3. The ZSK signs the non-DNSKEY RRsets of the zone.
 
-An adversary who breaks algorithm B can forge signatures that validate
-against a currently published ZSK, but cannot substitute a ZSK of their
-own choosing without forging an algorithm-A signature on the apex
-DNSKEY RRset. The adversary's forgery window is therefore bounded by
-the lifetime of any individual ZSK. This bound is what compensates for
-algorithm B being weaker than algorithm A.
+The effect of the split is that the KSK -- the trust anchor for the
+zone, referenced by the parent DS -- can be given a stronger,
+longer-lived algorithm than was previously possible, because its
+signature size no longer has to fit the constraints of the ZSK role.
+The ZSK is not made weaker by this; it keeps whatever strength it would
+have had anyway. What changes is that the ZSK no longer has a
+same-strength KSK-algorithm signature sitting alongside it on every
+RRset.
 
-Without a normative bound on ZSK lifetime, this argument has no force:
-a long-lived ZSK gives a future adversary an unbounded opportunity to
-exploit a cryptanalytic advance against algorithm B. The completeness
-rule of {{!RFC4035}} did not by itself prevent this scenario either --
-{{!RFC6840}} Section 5.11 permits a validator to validate using any
-single supported algorithm -- but it did make an algorithm-A
-signature available on every RRset, so a validator that supported A
-*could* choose to require it. The algorithm-split profile of
-{{p-algsep}} removes that option: under the profile, non-DNSKEY
-RRsets carry only algorithm-B signatures, and no validator can fall
-back to A. An explicit cadence bound on B must take its place.
+An adversary who breaks the ZSK algorithm can forge signatures that
+validate against a currently published ZSK, but cannot substitute a ZSK
+of their own choosing without forging a KSK-algorithm signature on the
+apex DNSKEY RRset -- which the upgraded KSK is chosen to resist. The
+adversary's forgery window is therefore bounded by the lifetime of any
+individual ZSK. Bounding that lifetime is the role of the rotation
+cadence.
+
+This is not a new obligation invented by this document. The completeness
+rule of {{!RFC4035}} never prevented this scenario on its own:
+{{!RFC6840}} Section 5.11 already permits a validator to validate using
+any single supported algorithm. What completeness did do was make a
+second-algorithm signature available on every RRset, so a validator that
+supported it *could* choose to require it. The algorithm-split profile
+makes that fallback unnecessary rather than unavailable: the ZSK is held
+at a strength the operator already trusts, and its exposure is bounded
+by ordinary rotation instead of by signature redundancy.
 
 ## The Requirement
 
 A zone signed under the algorithm-split profile of {{p-algsep}} MUST
-roll its ZSK at a cadence T appropriate to the current threat estimate
-against algorithm B. T is intentionally not a fixed value in this
-document, because the appropriate value depends on cryptanalytic
-progress and on the deployment of cryptographically relevant quantum
-computers (CRQCs), neither of which can be predicted at the time of
-writing.
+roll its ZSK at a cadence T appropriate to the threat estimate against
+the ZSK algorithm. T is intentionally not a fixed value in this
+document, because the appropriate value depends on the chosen ZSK
+algorithm and on cryptanalytic progress, neither of which can be fixed
+at the time of writing.
 
-The appropriate value of T is a matter of operator security policy. It
-is informed by external threat tracking -- for example, the
-post-quantum cryptanalysis guidance of the IETF (notably the Crypto
-Forum Research Group) and of national bodies such as NIST's
-post-quantum cryptography project -- rather than fixed by this
-document. Operationally, T is expressed as the ZSK effectivity period
-and realized using the established key-rollover machinery of
-{{?RFC6781}} and the rollover-timing parameters of {{?RFC7583}}; what
-the algorithm-split profile adds is only that this period is now a
-security parameter compensating for the strength asymmetry between
-algorithms A and B, not merely an operational-convenience interval as
-in {{?RFC6781}}.
+For the intended deployment, in which the ZSK algorithm is itself
+PQ-safe (see {{p-algsep}}), the appropriate cadence is an ordinary
+rotation schedule -- the months-scale intervals that current operational
+practice already supports -- because the ZSK algorithm is not expected
+to be broken within the operational lifetime of any individual key. The
+cadence becomes a tighter security parameter only in the fallback case
+where the ZSK algorithm is materially weaker than the KSK algorithm (for
+example a classical ZSK retained during the transition); there, T should
+be reduced as the threat estimate against that algorithm sharpens.
 
-As an initial guideline, operators of algorithm-split zones SHOULD
-begin with T no greater than one month, and SHOULD be prepared to
-reduce T to one week or less as threat estimates against algorithm B
-sharpen. Operators SHOULD treat T as a tunable policy parameter rather
-than a static configuration value.
+The appropriate value of T is a matter of operator security policy,
+informed by external threat tracking -- for example, the post-quantum
+cryptanalysis guidance of the IETF (notably the Crypto Forum Research
+Group) and of national bodies such as NIST's post-quantum cryptography
+project -- rather than fixed by this document. Operationally, T is
+expressed as the ZSK effectivity period and realized using the
+established key-rollover machinery of {{?RFC6781}} and the
+rollover-timing parameters of {{?RFC7583}}.
 
 Signing implementations (including BIND, Knot, Cascade, and others)
 are expected to encode per-algorithm minimum cadences as
@@ -360,7 +387,7 @@ with which the parent signs the child's DS RRset -- typically the
 parent's ZSK, though a parent operating with a CSK signs with that key
 instead. If an adversary can forge that signature, the adversary can
 substitute the child's DS, and thereby the child's KSK; the child's
-algorithm-A protection then provides no benefit.
+KSK-algorithm protection then provides no benefit.
 
 This is a general property of DNSSEC: a zone is no more trustworthy
 than the weakest link between it and the trust anchor. The relevant
@@ -563,35 +590,30 @@ under the strongest available algorithm.
 
 In the algorithm-split profile of {{p-algsep}}, the KSK-side and
 ZSK-side algorithms are *not* peers. They occupy distinct,
-structurally asymmetric roles in a fixed chain of trust, derived in
-{{p-zskcadence}}: an adversary who breaks the ZSK algorithm cannot
-substitute a ZSK of their own choosing without also forging a
-KSK-algorithm signature on the apex DNSKEY RRset. The peer-role
-attack that completeness was designed to prevent does not apply,
-because the algorithms are not peers.
+structurally asymmetric roles in a fixed chain of trust: the parent DS
+authenticates the KSK, the KSK authenticates the ZSK, and the ZSK signs
+zone data. An adversary who breaks the ZSK algorithm cannot substitute
+a ZSK of their own choosing without also forging a KSK-algorithm
+signature on the apex DNSKEY RRset -- and the KSK algorithm is, under
+this profile, chosen to be strong precisely because the split frees it
+from the ZSK's size constraint. The peer-role downgrade that
+completeness was designed to prevent therefore does not apply: the
+algorithms are not peers, and the algorithm protecting the
+chain-of-trust step is the stronger of the two, not the weaker. This
+structural argument is the basis for the safety of the relaxation, and
+it holds independently of how often the ZSK is rolled.
 
-This eliminates peer-substitution downgrade outright. It does not,
-however, preserve the residual forgery-window bound that completeness
-afforded even outside the peer-role case; the relaxation trades that
-absolute guarantee (a forgery under the weaker algorithm cannot
-validate at all) for a time-bounded one (such a forgery validates only
-within a single ZSK's lifetime). The next paragraph describes that
-residual guarantee, and {{p-zskcadence}} restores it by other means.
-The safety claim of this document is therefore a claim about the
-combination, not about the relaxation in isolation.
-
-What completeness *did* provide, even outside the peer-role case,
-was an unforgeable upper bound on the lifetime of an attacker's
-forgery window: a non-DNSKEY RRset signed under both algorithms
-gave an A-supporting validator the option to require an A signature
-and thereby refuse any B-only forgery. The algorithm-split profile
-removes that fallback. The cadence requirement of {{p-zskcadence}}
-takes its place: instead of being prevented by signature redundancy,
-the forgery window is bounded by ZSK lifetime.
-
-The safety argument for this document is therefore *structural
-asymmetry plus bounded ZSK lifetime*. This is why {{p-algsep}} and
-{{p-zskcadence}} are inseparable.
+The relaxation does change one thing. Where every RRset previously
+carried signatures from every DNSKEY-RRset algorithm, a validator that
+supported the stronger algorithm *could* choose to require it on zone
+data and thereby refuse any forgery made under a weaker one. Under the
+split, zone data carries only ZSK-algorithm signatures, so that
+particular fallback is no longer available. Its place is taken by
+bounding the ZSK's exposure through rotation ({{p-zskcadence}}): the ZSK
+is held at a strength the operator already trusts, and the window in
+which a break of it could be exploited is bounded by the ZSK lifetime
+rather than by signature redundancy. For the intended PQ-safe ZSK this
+is an ordinary rotation schedule.
 
 ## What the Validator Can and Cannot Verify
 
@@ -617,19 +639,17 @@ than the prevailing practice.
 
 ## The ZSK Need Not Be the Weak Link
 
-The worked threat model below, and much of the language in
-{{p-zskcadence}}, analyses the demanding case in which the ZSK
-algorithm B is materially weaker than the KSK algorithm A -- typically
-a classical ZSK (ECDSA, Ed25519) paired with a post-quantum KSK. That
-case is analysed deliberately, because a profile that is safe when the
-ZSK is the weak link is safe *a fortiori* when it is not.
+Some of the language in {{p-zskcadence}}, and the threat model below,
+analyses the demanding case in which the ZSK algorithm is materially
+weaker than the KSK algorithm -- typically a classical ZSK (ECDSA,
+Ed25519) paired with a post-quantum KSK. The intended deployment is not
+that case. The expectation is that the ZSK algorithm is itself
+post-quantum, with a security margin comparable to the long-lived
+classical keys (such as 2048-bit or larger RSA) that are, in practice,
+rarely or never rolled today -- chosen for the "ZSK property" of small
+signatures rather than for a short security horizon.
 
-The intended deployment, however, is not that case. The expectation is
-that the ZSK algorithm is itself post-quantum, with a security margin
-comparable to the long-lived classical keys (such as 2048-bit or larger
-RSA) that are, in practice, rarely or never rolled today -- chosen for
-the "ZSK property" of small signatures rather than for a short security
-horizon. When the ZSK is that strong, the cadence requirement of
+When the ZSK is that strong, the cadence requirement of
 {{p-zskcadence}} is a conservative margin rather than the sole barrier
 to forgery, and the net effect of the profile is almost entirely on the
 other side of the split: it lets the KSK, for the first time, be chosen
@@ -642,32 +662,36 @@ key, not the child's KSK, caps the chain.)
 
 ## Threat Model for the Transition
 
-In the most-discussed near-term transition, algorithm A is
-post-quantum (or otherwise expected to be long-lived) and algorithm
-B is a traditional algorithm such as ECDSA or Ed25519. The
-remainder of this section uses that instance as the worked example;
-the analysis carries over to the more general case where algorithm
-B is post-quantum but with a shorter security margin than algorithm
-A. The most relevant threat in the near-term case is the future
-arrival of a cryptographically relevant quantum computer capable of
-breaking algorithm B. Under that threat:
+In the intended deployment both the KSK and the ZSK use PQ-safe
+algorithms (the KSK a strong, long-lived one; the ZSK one with small
+signatures). Against the arrival of a cryptographically relevant
+quantum computer (CRQC), both the trust anchor and bulk zone data are
+then protected, and the ZSK rotation cadence is an ordinary schedule
+that bounds residual exposure as a margin.
 
-* Long-term data integrity guarantees for non-DNSKEY RRsets are not
-  provided by this document; an attacker with a CRQC can forge
-  ZSK-signed data within the window of a published ZSK's lifetime.
-  The {{p-zskcadence}} cadence bounds this window.
+The more demanding case is a transitional one, in which the KSK has
+already been upgraded to a PQ-safe algorithm but the ZSK is still a
+classical algorithm such as ECDSA or Ed25519. It is worth working
+through explicitly, because a profile that is safe here is safe a
+fortiori when the ZSK is also PQ-safe. The relevant threat is a CRQC
+capable of breaking the classical ZSK algorithm. Under that threat:
+
+* Long-term data integrity for non-DNSKEY RRsets is not provided in
+  this transitional case; an attacker with a CRQC can forge ZSK-signed
+  data within the window of a published ZSK's lifetime. The
+  {{p-zskcadence}} cadence bounds this window, which is why the cadence
+  matters most in exactly this case.
 
 * Long-term trust-anchor integrity *is* provided, because the KSK
-  algorithm (A) is chosen to resist a CRQC. A validator with a stable
-  algorithm-A trust anchor retains the ability to detect substituted
-  KSKs across time.
+  algorithm is chosen to resist a CRQC. A validator with a stable
+  PQ-safe trust anchor retains the ability to detect substituted KSKs
+  across time.
 
-* The combination is therefore appropriate as a transition strategy:
-  it exercises large-key handling, transport, and operational tooling,
-  and protects the longest-lived element (the trust anchor), while
-  acknowledging that bulk-zone integrity against a CRQC requires
-  algorithm B to also be post-quantum (as discussed for the root in
-  {{s-root}}).
+* The combination is therefore appropriate even as an early transition
+  step: it upgrades the longest-lived element (the trust anchor) first,
+  and exercises large-key handling, transport, and operational tooling,
+  while full protection of bulk zone data against a CRQC follows once
+  the ZSK is also PQ-safe (as discussed for the root in {{s-root}}).
 
 ## Cross-Zone Dependency
 
@@ -720,19 +744,16 @@ Internet Foundation) for valuable insights and suggestions.
 ## draft-johani-dnsop-dnssec-alg-split-01
 {:numbered="false"}
 
-* Reframed the motivation: a single zone algorithm today must satisfy
-  both key roles' constraints at once, and the binding constraint is
-  the ZSK's small-signature requirement, which caps the strength
-  available to the KSK. Algorithm splitting lets each key's algorithm
-  be chosen for the property that matters in its role; the primary
-  effect is a stronger KSK, not a weaker ZSK (Introduction).
-* Added "What the Validator Can and Cannot Verify": the validator
-  cannot observe ZSK rotation cadence, but this is a pre-existing
-  property of DNSSEC, not a new weakness, and a diligently rolled ZSK
-  is stronger than the no-roll practice common today (Security
-  Considerations).
-* Added "The ZSK Need Not Be the Weak Link": clarified that the
-  classical-ZSK threat model is analysed as the conservative worst
-  case, while the intended deployment uses a PQ-safe ZSK whose strength
-  is comparable to long-lived keys that are rarely rolled today
-  (Security Considerations).
+-01 is the first substantive version (-00 was a brief initial posting,
+quickly superseded). Relative to -00:
+
+* The motivation leads with per-role algorithm choice: the split lets
+  the KSK and ZSK each use the algorithm suited to its role, the
+  primary effect being a stronger KSK rather than a weaker ZSK.
+* The safety argument for the completeness relaxation is the structural
+  (not-peers) one and holds independently of rotation cadence; the
+  cadence is presented as a bound on residual ZSK exposure, an ordinary
+  rotation schedule for the intended PQ-safe ZSK.
+* Dropped "with Bounded ZSK Cadence" from the title; the threat model
+  leads with the PQ-safe-ZSK case; and a validator MAY apply a stricter
+  local policy on which KSK algorithms it accepts the relaxation for.
