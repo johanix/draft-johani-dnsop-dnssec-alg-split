@@ -64,9 +64,9 @@ This document specifies the changes that make this pattern safe and
 practical: (1) it relaxes the DNSSEC signing rule that requires a zone
 to be signed with every algorithm present in the apex DNSKEY RRset, so
 that an algorithm used only by a key-signing key need not be applied to
-the rest of the zone; (2) it requires the ZSK to be rolled at an
-appropriate cadence, which bounds the residual exposure of the ZSK
-algorithm; and (3) it specifies how a resolver can use the algorithm
+the rest of the zone; (2) it relies on ordinary ZSK rotation to bound
+the residual exposure of the ZSK algorithm; and (3) it specifies how a
+resolver can use the algorithm
 number in the parent's DS RRset to recognize a likely-oversized DNSKEY
 RRset and select a transport suitable for large responses, avoiding the
 truncate-then-retry round trip. This document updates RFC 4035 and
@@ -346,12 +346,15 @@ by ordinary rotation instead of by signature redundancy.
 
 ## The Requirement
 
-A zone signed under the algorithm-split profile of {{p-algsep}} MUST
+A zone signed under the algorithm-split profile of {{p-algsep}} SHOULD
 roll its ZSK at a cadence T appropriate to the threat estimate against
 the ZSK algorithm. T is intentionally not a fixed value in this
 document, because the appropriate value depends on the chosen ZSK
 algorithm and on cryptanalytic progress, neither of which can be fixed
-at the time of writing.
+at the time of writing. The safety of the completeness relaxation does
+not depend on this cadence (it rests on the structural argument of
+{{security}}); the cadence bounds the residual exposure of the ZSK
+algorithm, and matters most in the fallback case below.
 
 For the intended deployment, in which the ZSK algorithm is itself
 PQ-safe (see {{p-algsep}}), the appropriate cadence is an ordinary
@@ -374,10 +377,10 @@ rollover-timing parameters of {{?RFC7583}}.
 
 Signing implementations (including BIND, Knot, Cascade, and others)
 are expected to encode per-algorithm minimum cadences as
-policy and to refuse to operate a zone under the algorithm-split
+policy and may refuse to operate a zone under the algorithm-split
 profile with a ZSK lifetime exceeding those minima. Such policies are
-out of scope for this document, which only requires that *some*
-appropriate cadence be enforced.
+out of scope for this document, which only recommends that *some*
+appropriate cadence be applied.
 
 ## The Parent's Signature on the Child DS Is Part of the Argument
 
@@ -568,10 +571,10 @@ as for any rollout of a new algorithm. Deploying a large or
 post-quantum KSK therefore has the same backward-compatibility profile
 as introducing any new DNSSEC algorithm.
 
-The ZSK rotation cadence required by {{p-zskcadence}} interacts with
+The ZSK rotation cadence recommended in {{p-zskcadence}} interacts with
 cache TTLs, key-management automation, and HSM throughput. Operators
 adopting the algorithm-split profile SHOULD verify that their
-operational pipeline can sustain the required cadence before deploying
+operational pipeline can sustain the chosen cadence before deploying
 the profile.
 
 # Security Considerations {#security}
@@ -618,7 +621,7 @@ is an ordinary rotation schedule.
 ## What the Validator Can and Cannot Verify
 
 The time-bounded guarantee of {{p-zskcadence}} rests on the zone
-operator actually rolling the ZSK at the required cadence. A validator
+operator actually rolling the ZSK at an appropriate cadence. A validator
 cannot verify this: nothing in the DS RRset, the DNSKEY RRset, or the
 signatures reveals how often the ZSK is rolled, or whether it is ever
 rolled at all. The relaxation therefore asks the validator to accept
@@ -649,7 +652,7 @@ classical keys (such as 2048-bit or larger RSA) that are, in practice,
 rarely or never rolled today -- chosen for the "ZSK property" of small
 signatures rather than for a short security horizon.
 
-When the ZSK is that strong, the cadence requirement of
+When the ZSK is that strong, the cadence recommendation of
 {{p-zskcadence}} is a conservative margin rather than the sole barrier
 to forgery, and the net effect of the profile is almost entirely on the
 other side of the split: it lets the KSK, for the first time, be chosen
