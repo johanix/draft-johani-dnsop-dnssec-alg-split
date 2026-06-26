@@ -63,14 +63,13 @@ large algorithm contained in the DNSKEY RRset.
 This document specifies the changes that make this pattern safe and
 practical: (1) it relaxes the DNSSEC signing rule that requires a zone
 to be signed with every algorithm present in the apex DNSKEY RRset, so
-that an algorithm used only by a key-signing key need not be applied to
-the rest of the zone; (2) it relies on ordinary ZSK rotation to bound
-the residual exposure of the ZSK algorithm; and (3) it specifies how a
-resolver can use the algorithm
-number in the parent's DS RRset to recognize a likely-oversized DNSKEY
-RRset and select a transport suitable for large responses, avoiding the
-truncate-then-retry round trip. This document updates RFC 4035 and
-RFC 6840.
+that an algorithm used only by a key-signing key need not be applied
+to the rest of the zone; (2) it relies on ordinary ZSK rotation to
+bound the residual exposure of the ZSK algorithm; and (3) it specifies
+how a resolver can use the algorithm number in the parent's DS RRset
+to recognize a likely-oversized DNSKEY RRset and select a transport
+suitable for large responses, avoiding the truncate-then-retry round
+trip. This document updates RFC 4035 and RFC 6840.
 
 --- middle
 
@@ -322,7 +321,7 @@ zone, referenced by the parent DS -- can be given a stronger,
 longer-lived algorithm than was previously possible, because its
 signature size no longer has to fit the constraints of the ZSK role.
 The ZSK is not made weaker by this; it keeps whatever strength it would
-have had anyway. What changes is that the ZSK no longer has a
+have had anyway. What changes is that the ZSK signature no longer has a
 same-strength KSK-algorithm signature sitting alongside it on every
 RRset.
 
