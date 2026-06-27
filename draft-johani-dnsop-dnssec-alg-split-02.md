@@ -91,16 +91,14 @@ RRset is then the only large object in the zone; ordinary query
 responses remain small.
 
 Asymmetric key strength between the KSK and ZSK is already common
-operational practice. Operators routinely deploy RSA zones with a
-longer (i.e. stronger) KSK and a shorter ZSK, trading
-larger DNSKEY-RRset signatures for smaller signatures on the rest of
-the zone. The KSK/ZSK strength asymmetry proposed by this document is
-the same operational pattern; the only difference is that the
-asymmetry crosses the algorithm-number boundary rather than a
-key-length boundary within a single algorithm. It is that crossing --
-not the strength asymmetry itself -- that interacts with the
-completeness rule of {{!RFC4035}} and motivates the updates in this
-document.
+operational practice -- for example, the longer KSK and shorter ZSK
+routinely deployed within a single RSA zone ({{analysis}}). The KSK/ZSK
+strength asymmetry proposed by this document is the same operational
+pattern; the only difference is that the asymmetry crosses the
+algorithm-number boundary rather than a key-length boundary within a
+single algorithm. It is that crossing -- not the strength asymmetry
+itself -- that interacts with the completeness rule of {{!RFC4035}} and
+motivates the updates in this document.
 
 The deeper motivation is to decouple two requirements that a single
 zone algorithm is forced to satisfy at once. A KSK and a ZSK protect
@@ -182,8 +180,8 @@ two roles. For a KSK the decisive property is longevity: it is the
 zone's trust anchor, referenced by the parent DS RRset, and the cost of
 replacing it is high because the replacement has to be coordinated with
 the parent. What an operator wants from a KSK is a key strong enough
-that it never has to be rolled merely because its algorithm has weakened
-over time. A KSK algorithm is also subject to a constraint the operator
+that it does not have to be rolled merely because it has been used for
+too long. A KSK algorithm is also subject to a constraint the operator
 does not fully control: the parent must be willing to publish a DS
 record for it. Because the secure delegation exists only through the
 parent's DS RRset, the parent has effective veto over the child's KSK
@@ -302,7 +300,7 @@ The first is parent coordination. Changing the algorithm changes the
 KSK, and a new KSK cannot be relied upon until the parent's DS RRset
 references it. Establishing the new DS, confirming its publication, and
 only then retiring the old KSK is a multi-step exchange with the
-parent, whose timing the child operator does not fully control. At the
+parent, whose timing the child operator does not control. At the
 time of writing there is no widely deployed mechanism for automated
 KSK-algorithm rollover, so in practice this step is operator-driven and
 its duration is effectively unbounded -- a traditional algorithm
@@ -322,7 +320,8 @@ rollover -- and routes each of the two costs to a different one of
 them, where it turns out to be acceptable for a reason the other does
 not share.
 
-A ZSK-algorithm rollover under the split is a purely local operation.
+A ZSK-algorithm rollover under the algorithm-split profile is a purely
+local operation.
 The KSK, the DS, and the parent are not involved: the algorithm in the
 parent DS RRset does not change, so there is no parent coordination and
 none of the unbounded delay that came with it. Like every ZSK
@@ -336,37 +335,33 @@ than months. A ZSK-algorithm rollover is, in short, a different and far
 smaller animal than the traditional rollover it descends from, and
 there is no operational reason to draw it out.
 
-Because the operation is short and bounded, the old algorithm's
-signatures coexist with the new algorithm's signatures only briefly, for
-the duration of that drain. This document describes two ways to manage
-the ZSK-algorithm transition ({{p-zskcadence}}): a sequential rollover,
-in which the new-algorithm ZSK replaces the old one and the old
-signatures are simply allowed to expire from caches; and a
-double-signature rollover, in which every RRset is held under both
-algorithms for the whole window. The sequential rollover never inflates
-a response beyond a single ZSK signature except for whatever overlap the
-cache-drain unavoidably produces, whereas the double-signature rollover
-deliberately doubles the signature on every RRset for the entire window.
-For the large signatures this document is concerned with, that
-difference is exactly the cost the whole approach exists to avoid, which
-is why the sequential rollover is the recommended model for the ZSK
-({{p-zskcadence}}).
+This document describes two ways to manage the ZSK-algorithm transition
+({{p-zskcadence}}). A sequential rollover is exactly an ordinary
+same-algorithm ZSK rollover, except that the algorithm used to create
+the incoming key differs from the outgoing one: the incoming ZSK becomes
+active and re-signs each RRset, replacing the outgoing algorithm's
+signature on it, and the outgoing key follows the usual retired-state
+handling. Each non-DNSKEY RRset therefore carries a single ZSK signature
+throughout. A double-signature rollover instead holds every RRset under
+both algorithms for the whole window, deliberately doubling the
+signature on every RRset. For the large signatures this document is
+concerned with, that difference is exactly the cost the whole approach
+exists to avoid, which is why the sequential rollover is the recommended
+model for the ZSK ({{p-zskcadence}}).
 
-A KSK-algorithm rollover remains a double-signature rollover: it is
-parent-coordinated, and during the window the apex DNSKEY RRset holds
-both the outgoing and incoming KSK and is signed under both algorithms.
-This is the same conservative rollover DNSSEC has always used, and it
-retains the parent dependency described above. What changes is that its
-cost is no longer significant. The expensive property of whole-zone
-double-signing -- that every RRset doubles in size -- never arises here,
-because a KSK signs only the apex DNSKEY RRset; the doubling is confined
-to that one RRset and appears nowhere else in the zone. And the apex
-DNSKEY RRset is, by the premise of this entire document, already large:
-it carries the large KSK algorithm's key material regardless of whether
-a rollover is in progress ({{p-algsep}}). Once that size has been
-accepted as the cost of using a large KSK algorithm at all, the
-transient further enlargement of that single RRset during a KSK rollover
-is a second-order cost on an object already sized to be large.
+A KSK-algorithm rollover keeps the existing DNSSEC behavior. During the
+window two KSK algorithms are present in the apex DNSKEY RRset (|K| > 1),
+and the algorithm-completeness requirement of {{!RFC4035}} therefore
+requires that RRset to be signed by both -- a requirement this document
+leaves in place for the apex DNSKEY RRset, relaxing it only for
+non-DNSKEY RRsets. The transient double-signing of the DNSKEY RRset is
+thus the ordinary {{!RFC4035}} rule, not a new burden introduced here.
+Because a KSK signs only the apex DNSKEY RRset, that double-signing is
+confined to that one RRset and appears nowhere else in the zone; and the
+apex DNSKEY RRset is, by the premise of this entire document, already
+large, carrying the large KSK algorithm's key material whether or not a
+rollover is in progress ({{p-algsep}}). The rest of the zone is
+unaffected.
 
 The net effect is a clean division of labor. The two burdens that made
 the traditional algorithm rollover slow and heavy are separated: the
@@ -376,7 +371,7 @@ whole-zone signing stays with the ZSK rollover, which is now local,
 bounded, and need not double-sign the zone at all. Neither resulting
 rollover carries both burdens, and each is acceptable on its own terms.
 
-## Costs and Tradeoffs {#costs-and-tradeoffs}
+## Costs and Tradeoffs
 
 Algorithm splitting is not free, and the relaxation it depends on gives
 up something the completeness rule provided. This subsection states the
@@ -412,13 +407,6 @@ typically the parent's ZSK -- until the parent itself transitions. This
 is a general property of DNSSEC, not a new weakness, but a parent whose
 children adopt the split should treat the strength of its DS-signing key
 as a security parameter of those children ({{cross-zone-dependency}}).
-
-Finally, the split introduces a transient operational cost during a KSK
-rollover: the apex DNSKEY RRset must hold both the outgoing and the
-incoming KSK, enlarging an already-large RRset further for the duration
-of the roll. As discussed in {{simplified-rollovers}} this is a
-second-order effect on an object already sized to be large, but
-operators should account for it when sizing transport expectations.
 
 # Distinct Algorithms for the KSK and the ZSK {#p-algsep}
 
@@ -472,9 +460,10 @@ The common steady-state case has |K| = |Z| = 1 (a single KSK algorithm
 A and a single ZSK algorithm B, with A != B). |K| > 1 corresponds to
 a KSK-algorithm rollover (the zone is transitioning between two KSK
 algorithms, both of which appear in the parent DS RRset and the apex
-DNSKEY RRset during the rollover window; this is a double-signature
-rollover confined to the apex DNSKEY RRset, see
-{{simplified-rollovers}}). |Z| > 1 corresponds to a ZSK-algorithm
+DNSKEY RRset during the rollover window; the apex DNSKEY RRset is then
+signed by both KSK algorithms, as the algorithm-completeness rule of
+{{!RFC4035}} requires and this document retains for the DNSKEY RRset,
+see {{simplified-rollovers}}). |Z| > 1 corresponds to a ZSK-algorithm
 rollover, during which more than one ZSK algorithm is present in the
 apex DNSKEY RRset. How the non-DNSKEY RRsets are signed across that
 window -- whether each carries every ZSK algorithm at once
@@ -644,15 +633,16 @@ either of two models. The motivation for distinguishing them, and the
 analysis that favors the first, is in {{simplified-rollovers}}; this
 subsection states the normative recommendation.
 
-In the *sequential* model the incoming-algorithm ZSK is published and
-becomes the signing key, and the outgoing-algorithm ZSK and its
-signatures are simply allowed to age out of caches before the outgoing
-key is withdrawn from the apex DNSKEY RRset. At no instant is every
-non-DNSKEY RRset required to carry signatures of both algorithms at
-once; the two algorithms overlap only to the extent the cache drain
-makes unavoidable. This is an ordinary, local ZSK rollover (see
-{{simplified-rollovers}}) whose completion time is bounded by the
-signature validity and TTL of the outgoing-algorithm data.
+The *sequential* model is exactly an ordinary same-algorithm ZSK
+rollover (see {{simplified-rollovers}}), except that the algorithm used
+to create the incoming key differs from the outgoing one. The incoming
+ZSK becomes active (i.e. used for signing) and re-signs each RRset,
+replacing the outgoing algorithm's signature on it, and the outgoing key
+follows the usual retired-state handling -- it remains in the DNSKEY
+RRset until the signatures it made have drained from caches, then is
+removed. Each non-DNSKEY RRset carries a single ZSK signature
+throughout; no RRset is required to carry signatures of both algorithms
+at once.
 
 In the *double-signature* model every non-DNSKEY RRset is signed by both
 the outgoing and the incoming ZSK algorithm for the whole rollover
@@ -670,10 +660,16 @@ ZSK algorithm; see {{security}}), because the operation is local and its
 duration is bounded by the operator alone ({{simplified-rollovers}}),
 and because for the large signatures this document is concerned with the
 double-signature model imposes exactly the per-RRset size cost the
-algorithm-split profile exists to avoid. The double-signature model
-remains available for operators who require maintained per-RRset
-redundancy across the rollover window for local-policy reasons; it is
-correct, merely larger and slower.
+algorithm-split profile exists to avoid. The contrast with the KSK side
+is deliberate: a KSK-algorithm rollover retains the {{!RFC4035}}
+algorithm-completeness requirement and double-signs the apex DNSKEY
+RRset ({{simplified-rollovers}}), because there the doubling is confined
+to that single, already-large RRset; for the ZSK the same doubling would
+fall on every RRset in the zone, which is why completeness is relaxed
+for non-DNSKEY data and the sequential model is recommended. The
+double-signature model remains available for operators who require
+maintained per-RRset redundancy across the rollover window for
+local-policy reasons; it is correct, merely larger and slower.
 
 A validator MUST accept a zone undergoing either model, since both
 satisfy the profile requirement that each non-DNSKEY RRset carry at
@@ -859,10 +855,10 @@ that fit comfortably in UDP. The large object is thus a
 once-per-TTL-per-cache cost, which {{p-dssignal}} further reduces by
 avoiding the truncated-UDP round trip.
 
-Rolling a large KSK transiently enlarges the DNSKEY RRset further, as
-it must hold both the outgoing and incoming KSKs during the rollover;
-the cost and why it is second-order are discussed in
-{{costs-and-tradeoffs}}.
+A KSK-algorithm rollover transiently enlarges the DNSKEY RRset further,
+as it must carry both KSK algorithms and a signature from each during
+the rollover window. Operators should account for this when sizing
+transport expectations.
 
 A validator that does not support the KSK algorithm cannot follow the
 DS-based chain of trust and treats the delegation as Insecure, exactly
