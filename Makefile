@@ -1,5 +1,5 @@
 DRAFT = draft-johani-dnsop-dnssec-alg-split
-VERSION = 00
+VERSION = 02
 
 all: $(DRAFT)-$(VERSION).txt $(DRAFT)-$(VERSION).html
 
